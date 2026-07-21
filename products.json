@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "name": "rolix",
+    "price": 100,
+    "image": "images/product_1784643645535_347.jpg",
+    "category": "watches"
+  }
+]
