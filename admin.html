@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - YFFO STORE</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #0a0a0a; padding: 30px; margin: 0; color: #f5f0e1; }
+        .container { max-width: 900px; margin: auto; }
+        h1 { letter-spacing: 4px; text-transform: uppercase; background: linear-gradient(135deg,#D4AF37,#F5E6A8); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+        h3 { margin-top: 25px; border-bottom: 1px solid rgba(212,175,55,0.3); padding-bottom: 8px; font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: #D4AF37; }
+        .form-group { margin-bottom: 15px; }
+        label { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #c9b896; }
+        input, select { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid rgba(212,175,55,0.2); background: #141414; color: #f5f0e1; font-size: 14px; font-family: inherit; box-sizing: border-box; }
+        input:focus, select:focus { outline: none; border-color: #D4AF37; }
+        button { background: linear-gradient(135deg,#D4AF37,#B8860B); color: #0a0a0a; padding: 15px 30px; border: none; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700; cursor: pointer; }
+        button:hover:not(:disabled) { opacity: 0.85; }
+        button:disabled { opacity: 0.4; }
+        .product-item { background: #141414; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(212,175,55,0.15); }
+        .delete-btn { background: none; color: #c1121f; border: 1px solid #c1121f; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; padding: 8px 14px; }
+        .login-box { max-width: 400px; margin: 80px auto; text-align: center; }
+        .login-box input { margin: 15px 0; }
+        .status { padding: 12px; margin: 15px 0; text-align: center; font-size: 13px; }
+        .status.success { background: rgba(212,175,55,0.1); color: #D4AF37; }
+        .status.error { background: rgba(193,18,31,0.1); color: #ff6b6b; }
+        .status.loading { background: rgba(212,175,55,0.05); color: #c9b896; }
+        .small { font-size: 12px; color: #888; }
+        img.thumb { width: 60px; height: 60px; object-fit: cover; border: 1px solid rgba(212,175,55,0.2); }
+        .overlay { position: fixed; inset: 0; background: rgba(10,10,10,0.9); display: none; z-index: 9999; align-items: center; justify-content: center; }
+        .overlay.show { display: flex; }
+        .overlay .msg { color: #D4AF37; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; }
+        a { color: #D4AF37; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+    <div class="overlay" id="overlay"><div class="msg" id="overlay-msg">Processing...</div></div>
+
+    <div id="login-screen">
+        <div class="login-box">
+            <h1>YFFO STORE</h1>
+            <p class="small">Admin Panel</p>
+            <input type="password" id="password" placeholder="Password" onkeypress="if(event.key==='Enter') checkPassword()">
+            <br><br>
+            <button onclick="checkPassword()">Login</button>
+        </div>
+    </div>
+
+    <div id="token-screen" style="display:none;">
+        <div class="login-box">
+            <h3 style="border:none;">GitHub Setup</h3>
+            <p class="small">Paste your GitHub Token</p>
+            <input type="password" id="tokenInput" placeholder="ghp_xxxxxxxx">
+            <br><br>
+            <button onclick="saveToken()">Continue</button>
+        </div>
+    </div>
+
+    <div id="admin-panel" style="display:none;">
+        <div class="container">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+                <h1 style="margin:0;">YFFO STORE</h1>
+                <div><a href="index.html">View Site</a> | <a href="#" onclick="logoutToken();return false;" style="color:#c1121f;">Logout</a></div>
+            </div>
+            <div id="status-box"></div>
+            <h3>Add Product</h3>
+            <div class="form-group"><label>Name</label><input type="text" id="productName" placeholder="Luxury Watch"></div>
+            <div class="form-group"><label>Price (DH)</label><input type="number" id="productPrice" placeholder="599"></div>
+            <div class="form-group"><label>Category</label><select id="productCategory"><option value="watches">⌚ Watches</option><option value="bags">👜 Bags</option></select></div>
+            <div class="form-group"><label>Image</label><input type="file" id="productImage" accept="image/*"></div>
+            <button onclick="addProduct()">Add Product</button>
+            <h3>Products <span id="product-count" class="small"></span></h3>
+            <button onclick="loadProducts()" style="font-size:11px;padding:10px 20px;margin-bottom:15px;">Refresh</button>
+            <div id="productList"></div>
+            <br>
+            <button onclick="clearAllProducts()" style="background:none;color:#c1121f;border:1px solid #c1121f;">Delete All</button>
+        </div>
+    </div>
+
+    <script>
+        const PASSWORD = "admin123";
+        const CONFIG = { owner: "maryambella2001-blip", repo: "yffo-store", branch: "main", productsFile: "products.json", imagesFolder: "images" };
+
+        let busy = false;
+        async function withLock(msg, fn) {
+            if (busy) return;
+            busy = true; showOverlay(msg); document.querySelectorAll("button").forEach(b => b.disabled = true);
+            try { return await fn(); } finally { busy = false; hideOverlay(); document.querySelectorAll("button").forEach(b => b.disabled = false); }
+        }
+        function showOverlay(msg) { document.getElementById("overlay-msg").textContent = msg || "Processing..."; document.getElementById("overlay").classList.add("show"); }
+        function hideOverlay() { document.getElementById("overlay").classList.remove("show"); }
+        function getToken() { return localStorage.getItem("yffo_github_token") || ""; }
+        function saveToken() { const t = document.getElementById("tokenInput").value.trim(); if (!t) { alert("Paste token!"); return; } localStorage.setItem("yffo_github_token", t); showAdminPanel(); }
+        function logoutToken() { if (confirm("Remove token?")) { localStorage.removeItem("yffo_github_token"); location.reload(); } }
+        function checkPassword() { if (document.getElementById("password").value === PASSWORD) { getToken() ? showAdminPanel() : (document.getElementById("login-screen").style.display="none", document.getElementById("token-screen").style.display="block"); } else alert("Wrong!"); }
+        function showAdminPanel() { document.getElementById("login-screen").style.display="none"; document.getElementById("token-screen").style.display="none"; document.getElementById("admin-panel").style.display="block"; loadProducts(); }
+        function showStatus(msg, type) { document.getElementById("status-box").innerHTML = msg ? `<div class="status ${type}">${msg}</div>` : ""; }
+
+        async function githubGet(path) {
+            const token = getToken();
+            const url = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${path}?ref=${CONFIG.branch}&t=${Date.now()}`;
+            for (let i = 1; i <= 4; i++) {
+                try { const res = await fetch(url, { cache: "no-store", headers: { "Authorization": `Bearer ${token}`, "Accept": "application/vnd.github+json" } }); if (res.status === 404) return null; if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status }); return await res.json(); }
+                catch (e) { if (i === 4 || (e.status && e.status < 500 && e.status !== 0)) throw e; await new Promise(r => setTimeout(r, 1500 * i)); }
+            }
+        }
+        async function githubPut(path, b64, msg, sha) {
+            const token = getToken();
+            const body = { message: msg, content: b64, branch: CONFIG.branch }; if (sha) body.sha = sha;
+            const res = await fetch(`https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${path}`, { method: "PUT", cache: "no-store", headers: { "Authorization": `Bearer ${token}`, "Accept": "application/vnd.github+json", "Content-Type": "application/json" }, body: JSON.stringify(body) });
+            if (!res.ok) { const e = await res.json().catch(() => ({})); const err = new Error(`PUT ${res.status} - ${e.message||""}`); err.status = res.status; throw err; }
+            return await res.json();
+        }
+        async function githubPutRaw(path, b64, msg) { for (let i = 1; i <= 4; i++) { try { return await githubPut(path, b64, msg); } catch (e) { if (i === 4 || (e.status && e.status < 500)) throw e; showOverlay(`Retry ${i}/4`); await new Promise(r => setTimeout(r, 2000 * i)); } } }
+        async function githubDelete(path, sha, msg) { const token = getToken(); const res = await fetch(`https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${path}`, { method: "DELETE", cache: "no-store", headers: { "Authorization": `Bearer ${token}`, "Accept": "application/vnd.github+json", "Content-Type": "application/json" }, body: JSON.stringify({ message: msg, sha, branch: CONFIG.branch }) }); if (!res.ok) throw Object.assign(new Error(`DELETE ${res.status}`), { status: res.status }); }
+
+        function fileToBase64(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = e => res(e.target.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(file); }); }
+        function strToBase64(s) { return btoa(unescape(encodeURIComponent(s))); }
+        function base64ToStr(b) { return decodeURIComponent(escape(atob(b.replace(/\n/g, "")))); }
+        async function readProducts() { const d = await githubGet(CONFIG.productsFile); if (!d) return { products: [], sha: null }; return { products: JSON.parse(base64ToStr(d.content)), sha: d.sha }; }
+        async function writeProducts(modifyFn) {
+            for (let a = 1; a <= 6; a++) {
+                const { products, sha } = await readProducts();
+                const updated = modifyFn(products.map(p => ({ ...p })));
+                try { const c = strToBase64(JSON.stringify(updated, null, 2)); const r = await githubPut(CONFIG.productsFile, c, `Update (${a})`, sha); await new Promise(r => setTimeout(r, 800)); const v = await readProducts(); if (JSON.stringify(v.products) === JSON.stringify(updated)) return r; throw new Error("verify"); }
+                catch (e) { if (!(e.status >= 500 || e.status === 409 || e.status === 422 || e.message.includes("verify") || e.message.includes("Failed to fetch")) || a === 6) throw e; showOverlay(`Retry ${a+1}/6`); await new Promise(r => setTimeout(r, 2000)); }
+            }
+        }
+
+        async function addProduct() {
+            const name = document.getElementById("productName").value.trim();
+            const price = document.getElementById("productPrice").value;
+            if (!name) { alert("Enter name!"); return; }
+            if (!price || parseInt(price) <= 0) { alert("Enter price!"); return; }
+            await withLock("Adding...", async () => {
+                try {
+                    let imagePath = "";
+                    const cName = name, cPrice = parseInt(price), cCat = document.getElementById("productCategory").value;
+                    const fileInput = document.getElementById("productImage");
+                    if (fileInput.files.length > 0) { const file = fileInput.files[0]; const ext = (file.name.split(".").pop() || "jpg").toLowerCase().substring(0, 4); imagePath = `${CONFIG.imagesFolder}/product_${Date.now()}_${Math.floor(Math.random()*1000)}.${ext}`; }
+                    showStatus('<div class="status loading">Saving product...</div>', "loading");
+                    await writeProducts(list => { list.push({ name: cName, price: cPrice, image: imagePath, category: cCat }); return list; });
+                    if (imagePath) { try { showStatus('<div class="status loading">Uploading image...</div>', "loading"); const b64 = await fileToBase64(fileInput.files[0]); let ok = false; for (let t = 1; t <= 3; t++) { await githubPutRaw(imagePath, b64, `Image ${t}`); await new Promise(r => setTimeout(r, 1500)); if (await githubGet(imagePath)) { ok = true; break; } } showStatus(ok ? `<div class="status success">✓ ${cName} added!</div>` : `<div class="status loading">⚠ ${cName} added (image pending)</div>`, ok ? "success" : "loading"); } catch (e) { showStatus('<div class="status loading">⚠ Added, image failed</div>', "loading"); } }
+                    else showStatus('<div class="status success">✓ ' + cName + ' added!</div>', "success");
+                    document.getElementById("productName").value = ""; document.getElementById("productPrice").value = ""; document.getElementById("productImage").value = "";
+                    await loadProducts();
+                } catch (e) { showStatus(`<div class="status error">Error: ${e.message}</div>`, "error"); }
+            });
+        }
+
+        async function deleteProduct(index) {
+            if (!confirm("Delete?")) return;
+            await withLock("Deleting...", async () => {
+                try {
+                    const { products } = await readProducts();
+                    const p = products[index]; if (!p) return;
+                    if (p.image && p.image.startsWith("images/")) { try { const d = await githubGet(p.image); if (d) await githubDelete(p.image, d.sha, "del img"); } catch (e) {} }
+                    const tn = p.name, ti = p.image;
+                    await writeProducts(list => { const i = list.findIndex(x => x.name === tn && x.image === ti); if (i !== -1) list.splice(i, 1); return list; });
+                    showStatus('<div class="status success">✓ Deleted</div>', "success");
+                    await loadProducts();
+                } catch (e) { showStatus(`<div class="status error">Error: ${e.message}</div>`, "error"); }
+            });
+        }
+
+        async function clearAllProducts() {
+            if (!confirm("Delete ALL?")) return;
+            await withLock("Deleting all...", async () => {
+                try {
+                    const { products } = await readProducts();
+                    for (const p of products) { if (p.image && p.image.startsWith("images/")) { try { const d = await githubGet(p.image); if (d) await githubDelete(p.image, d.sha, "del"); } catch (e) {} } }
+                    await writeProducts(() => []);
+                    showStatus('<div class="status success">✓ All deleted</div>', "success");
+                    await loadProducts();
+                } catch (e) { showStatus(`<div class="status error">Error: ${e.message}</div>`, "error"); }
+            });
+        }
+
+        async function loadProducts() {
+            const container = document.getElementById("productList");
+            const countEl = document.getElementById("product-count");
+            container.innerHTML = '<p class="small">Loading...</p>';
+            try {
+                const { products } = await readProducts();
+                countEl.textContent = `(${products.length})`;
+                if (products.length === 0) { container.innerHTML = '<p class="small">No products yet.</p>'; return; }
+                container.innerHTML = products.map((p, i) => `
+                    <div class="product-item">
+                        <div style="display:flex;align-items:center;gap:15px;">
+                            ${p.image ? `<img src="${p.image}" class="thumb" onerror="this.style.display='none'">` : ''}
+                            <div><strong>${p.name}</strong><br><span class="small">${p.category === "bags" ? "👜 Bags" : "⌚ Watches"} · ${p.price} DH</span></div>
+                        </div>
+                        <button class="delete-btn" onclick="deleteProduct(${i})">Delete</button>
+                    </div>`).join("");
+            } catch (e) { container.innerHTML = `<p style="color:#ff6b6b;">Error: ${e.message}</p>`; }
+        }
+    </script>
+</body>
+</html>

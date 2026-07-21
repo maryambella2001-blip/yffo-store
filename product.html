@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <link rel="stylesheet" href="style.css">
+    <title>Product - YFFO STORE</title>
+    <style>
+        .product-detail { max-width: 1100px; margin: 110px auto 60px; padding: 0 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: start; }
+        .pd-image { background: #141414; padding: 25px; border: 1px solid rgba(212,175,55,0.2); position: sticky; top: 100px; }
+        .pd-image img { width: 100%; height: 500px; object-fit: cover; }
+        .pd-info { padding-top: 10px; }
+        .pd-cat { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #D4AF37; margin-bottom: 15px; }
+        .pd-name { font-size: 32px; font-weight: 400; letter-spacing: 1px; margin-bottom: 12px; color: #f5f0e1; }
+        .pd-price { font-size: 22px; font-weight: 600; margin-bottom: 35px; color: #D4AF37; }
+        .pd-divider { border: none; border-top: 1px solid rgba(212,175,55,0.2); margin: 30px 0; }
+        .pd-desc { font-size: 14px; color: #c9b896; line-height: 1.9; margin-bottom: 30px; font-style: italic; }
+        .pd-label { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #D4AF37; margin-bottom: 12px; font-weight: 600; }
+        .pd-sizes { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 35px; }
+        .pd-size-btn { min-width: 52px; padding: 12px; border: 1px solid rgba(212,175,55,0.3); background: #0a0a0a; color: #D4AF37; font-size: 13px; cursor: pointer; transition: all 0.2s; font-weight: 500; }
+        .pd-size-btn:hover { border-color: #D4AF37; }
+        .pd-size-btn.selected { background: #D4AF37; color: #0a0a0a; border-color: #D4AF37; }
+        .pd-add { width: 100%; padding: 18px; background: linear-gradient(135deg, #D4AF37, #B8860B); color: #0a0a0a; border: none; font-size: 13px; letter-spacing: 3px; text-transform: uppercase; font-weight: 700; cursor: pointer; transition: opacity 0.2s; margin-top: 10px; }
+        .pd-add:hover { opacity: 0.85; }
+        .pd-back { display: inline-block; margin-bottom: 25px; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #888; }
+        .pd-back:hover { color: #D4AF37; }
+        .pd-error { text-align: center; padding: 120px 20px; }
+        @media (max-width: 768px) {
+            .product-detail { grid-template-columns: 1fr; gap: 30px; margin: 90px 15px 40px; padding: 0; }
+            .pd-image { position: static; padding: 15px; }
+            .pd-image img { height: 340px; }
+            .pd-name { font-size: 26px; }
+            .pd-info { padding: 0; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="index.html" class="brand-name">YFFO STORE</a>
+        <ul id="nav-menu"><li><a href="index.html#shop">Shop</a></li><li><a href="index.html#about">About</a></li><li><a href="index.html#contact">Contact</a></li></ul>
+        <a href="card.html" class="cart-btn">Bag (<span id="cart-count">0</span>)</a>
+        <div class="header-hamburger" onclick="document.getElementById('nav-menu').classList.toggle('show')">☰</div>
+    </header>
+
+    <div class="product-detail" id="content">
+        <div style="grid-column:1/-1;text-align:center;padding:80px;color:#888;letter-spacing:2px;">LOADING...</div>
+    </div>
+
+    <script>
+        let cart = JSON.parse(localStorage.getItem("cart")) || [];
+        const API_URL = "https://api.github.com/repos/maryambella2001-blip/yffo-store/contents/products.json?ref=main&t=";
+        const RAW_BASE = "https://raw.githubusercontent.com/maryambella2001-blip/yffo-store/main/";
+        const PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='500'><rect width='400' height='500' fill='%23141414'/><text x='50%25' y='50%25' font-size='14' text-anchor='middle' dy='.3em' fill='%23D4AF37' font-family='Arial'>YFFO</text></svg>";
+
+        function resolveImage(path) { if (!path) return PLACEHOLDER; if (path.startsWith("http") || path.startsWith("data:")) return path; return RAW_BASE + path + "?t=" + Date.now(); }
+        function decodeBase64(b64) { return decodeURIComponent(escape(atob(b64.replace(/\n/g, "")))); }
+
+        async function loadProduct() {
+            const params = new URLSearchParams(window.location.search);
+            const index = parseInt(params.get("id")) || 0;
+            const content = document.getElementById("content");
+            let products = null;
+            try { const r = await fetch(API_URL + Date.now() + Math.random(), { cache: "no-store" }); if (r.ok) { const d = await r.json(); products = JSON.parse(decodeBase64(d.content)); } } catch (e) {}
+            if (!products) { try { const r2 = await fetch("products.json?t=" + Date.now(), { cache: "no-store" }); if (r2.ok) products = await r2.json(); } catch(e) {} }
+            const product = products && products[index];
+            if (!product) { content.innerHTML = '<div class="pd-error"><h2>Product not found</h2><br><a href="index.html" class="pd-back">← Back to Shop</a></div>'; return; }
+            const cat = product.category || "watches";
+            const sizes = cat === "watches" ? ["38mm","40mm","42mm"] : [];
+            const catLabel = cat === "bags" ? "Bags" : "Watches";
+            content.innerHTML = `
+                <div class="pd-image"><img src="${resolveImage(product.image)}" alt="${product.name}" onerror="this.src='${PLACEHOLDER}'"></div>
+                <div class="pd-info">
+                    <a href="index.html#shop" class="pd-back">← Back</a>
+                    <div class="pd-cat">${catLabel}</div>
+                    <h1 class="pd-name">${product.name}</h1>
+                    <div class="pd-price">${product.price} DH</div>
+                    <hr class="pd-divider">
+                    <p class="pd-desc">Crafted with premium materials and designed for those who appreciate true elegance. A statement piece that combines timeless design with modern luxury.</p>
+                    ${sizes.length > 0 ? `<div class="pd-label">Size</div><div class="pd-sizes">${sizes.map(s => `<button class="pd-size-btn" onclick="selectSize(this)">${s}</button>`).join("")}</div>` : ''}
+                    <button class="pd-add" onclick="addToCart()">Add to Bag</button>
+                </div>`;
+        }
+
+        function selectSize(el) { document.querySelectorAll(".pd-size-btn").forEach(b => b.classList.remove("selected")); el.classList.add("selected"); }
+        function addToCart() {
+            const name = document.querySelector(".pd-name").innerText;
+            const price = parseInt(document.querySelector(".pd-price").innerText);
+            const sel = document.querySelector(".pd-size-btn.selected");
+            const size = sel ? sel.innerText : "One Size";
+            cart.push({ name, price, size });
+            localStorage.setItem("cart", JSON.stringify(cart));
+            const btn = document.querySelector(".pd-add");
+            btn.innerText = "✓ Added to Bag"; btn.style.background = "#2a7a2a";
+            document.getElementById("cart-count").innerText = cart.length;
+            setTimeout(() => { btn.innerText = "Add to Bag"; btn.style.background = "linear-gradient(135deg, #D4AF37, #B8860B)"; }, 2000);
+        }
+        function updateCount() { const el = document.getElementById("cart-count"); if (el) el.innerText = cart.length; }
+        window.onload = function() { loadProduct(); updateCount(); }
+    </script>
+</body>
+</html>
