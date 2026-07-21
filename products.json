@@ -10,11 +10,5 @@
     "price": 100,
     "image": "images/product_1784643677597_398.jpg",
     "category": "watches"
-  },
-  {
-    "name": "sak",
-    "price": 122,
-    "image": "images/product_1784643734687_485.jpg",
-    "category": "bags"
   }
 ]
