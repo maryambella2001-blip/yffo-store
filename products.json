@@ -16,5 +16,11 @@
     "price": 122,
     "image": "images/product_1784643706856_171.jpg",
     "category": "bags"
+  },
+  {
+    "name": "sak",
+    "price": 122,
+    "image": "images/product_1784643734687_485.jpg",
+    "category": "bags"
   }
 ]
