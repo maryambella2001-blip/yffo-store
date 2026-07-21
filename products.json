@@ -4,5 +4,11 @@
     "price": 100,
     "image": "images/product_1784643645535_347.jpg",
     "category": "watches"
+  },
+  {
+    "name": "rolex grin",
+    "price": 100,
+    "image": "images/product_1784643677597_398.jpg",
+    "category": "watches"
   }
 ]
